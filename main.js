@@ -41,6 +41,32 @@ function parseCode(url) {
   }
   return code;
 }
+// Повертає шлях до файлу кешу для коду: <тека кешу>/<код>.jpg
+function cacheFilePath(cacheDir, code) {
+  return path.join(cacheDir, `${code}.jpg`);
+}
+
+// Читає картинку з кешу. Якщо файлу немає, повертає null, інші помилки пробрасує далі
+async function readFromCache(cacheDir, code) {
+  try {
+    return await fs.readFile(cacheFilePath(cacheDir, code));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return null;
+    }
+    throw err;
+  }
+}
+
+// Відправляє двійкові дані картинки з правильним Content-Type
+function sendImage(res, status, data, source) {
+  res.writeHead(status, {
+    'Content-Type': 'image/jpeg',
+    'Content-Length': data.length,
+    'X-Cache': source, // наш додатковий заголовок: звідки взято картинку
+  });
+  res.end(data);
+}
 
 // Створює обробник запитів (єдиний дозволений колбек, тому async-функція)
 function createHandler(cacheDir) {
@@ -61,8 +87,20 @@ function createHandler(cacheDir) {
         return;
       }
 
-      // 3. Заглушка: реалізуємо в наступних комітах
+            // 3. GET: віддаємо картинку з кешу
+      if (req.method === 'GET') {
+        const image = await readFromCache(cacheDir, code);
+        if (image === null) {
+          sendText(res, 404, 'Not Found: image is not in cache');
+          return;
+        }
+        sendImage(res, 200, image, 'HIT');
+        return;
+      }
+
+      // PUT і DELETE реалізуємо в наступних комітах
       sendText(res, 501, `Not implemented yet: ${req.method} ${code}`);
+      
     } catch (err) {
       // Будь-яка непередбачена помилка не повинна валити сервер
       console.error(`Помилка обробки запиту: ${err.message}`);
