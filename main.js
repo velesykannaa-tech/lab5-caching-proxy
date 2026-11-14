@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs/promises');
 const path = require('path');
 const { once } = require('events');
+const superagent = require('superagent');
 const { Command } = require('commander');
 
 const program = new Command();
@@ -67,6 +68,24 @@ function sendImage(res, status, data, source) {
   });
   res.end(data);
 }
+// Завантажує картинку з http.cat. Будь-яка помилка (404, мережа, таймаут) дає null
+async function fetchFromHttpCat(code) {
+  try {
+    const response = await superagent
+      .get(`https://http.cat/${code}`)
+      .responseType('blob') // у Node це означає: віддати тіло як Buffer, без перетворення в текст
+      .timeout(10000); // не чекаємо відповіді довше 10 секунд
+    const data = response.body;
+    if (!Buffer.isBuffer(data) || data.length === 0) {
+      return null;
+    }
+    return data;
+  } catch (err) {
+    // superagent відхиляє проміс для кодів 4xx/5xx (є err.status) і для мережевих помилок
+    console.error(`http.cat недоступний для коду ${code}: ${err.status || err.message}`);
+    return null;
+  }
+}
 
 // Створює обробник запитів (єдиний дозволений колбек, тому async-функція)
 function createHandler(cacheDir) {
@@ -87,20 +106,29 @@ function createHandler(cacheDir) {
         return;
       }
 
-            // 3. GET: віддаємо картинку з кешу
+                  // 3. GET: спочатку кеш, потім http.cat
       if (req.method === 'GET') {
-        const image = await readFromCache(cacheDir, code);
-        if (image === null) {
-          sendText(res, 404, 'Not Found: image is not in cache');
+        const cached = await readFromCache(cacheDir, code);
+        if (cached !== null) {
+          sendImage(res, 200, cached, 'HIT');
           return;
         }
-        sendImage(res, 200, image, 'HIT');
+
+        const fetched = await fetchFromHttpCat(code);
+        if (fetched === null) {
+          // не знайдено ні в кеші, ні на http.cat: нічого не зберігаємо
+          sendText(res, 404, 'Not Found: image is not in cache and not on http.cat');
+          return;
+        }
+
+        // спочатку зберігаємо в кеш, потім відповідаємо клієнту
+        await fs.writeFile(cacheFilePath(cacheDir, code), fetched);
+        sendImage(res, 200, fetched, 'MISS');
         return;
       }
-
       // PUT і DELETE реалізуємо в наступних комітах
       sendText(res, 501, `Not implemented yet: ${req.method} ${code}`);
-      
+
     } catch (err) {
       // Будь-яка непередбачена помилка не повинна валити сервер
       console.error(`Помилка обробки запиту: ${err.message}`);
