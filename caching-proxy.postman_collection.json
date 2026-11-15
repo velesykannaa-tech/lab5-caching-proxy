@@ -1,0 +1,267 @@
+{
+  "info": {
+    "_postman_id": "fa5debc6-39b9-4a18-8f2d-52c1fa187b7b",
+    "name": "Caching proxy lab",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "60196787",
+    "_collection_link": "https://go.postman.co/collection/60196787-fa5debc6-39b9-4a18-8f2d-52c1fa187b7b?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1 GET not in cache",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"Content-Type image/jpeg\", function () {\r\n    pm.response.to.have.header(\"Content-Type\", \"image/jpeg\");\r\n});\r\n\r\npm.test(\"Картинка взята з http.cat (X-Cache: MISS)\", function () {\r\n    pm.response.to.have.header(\"X-Cache\", \"MISS\");\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/200",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "200"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2 GET repeat from cache",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"Content-Type image/jpeg\", function () {\r\n    pm.response.to.have.header(\"Content-Type\", \"image/jpeg\");\r\n});\r\n\r\npm.test(\"Картинка з кешу (X-Cache: HIT)\", function () {\r\n    pm.response.to.have.header(\"X-Cache\", \"HIT\");\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/200",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "200"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3 PUT own image",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 201\", function () {\r\n    pm.response.to.have.status(201);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": "postman-cloud:///1f1e1269-e079-4560-8a6e-efe96767df99"
+          }
+        },
+        "url": {
+          "raw": "http://{{host}}:{{port}}/201",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "201"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4 GET after PUT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n\r\npm.test(\"Content-Type image/jpeg\", function () {\r\n    pm.response.to.have.header(\"Content-Type\", \"image/jpeg\");\r\n});\r\n\r\npm.test(\"Повернулась наша картинка з кешу (X-Cache: HIT)\", function () {\r\n    pm.response.to.have.header(\"X-Cache\", \"HIT\");\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/201",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "201"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5 DELETE",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 200\", function () {\r\n    pm.response.to.have.status(200);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/201",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "201"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6 DELETE missing image",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 404\", function () {\r\n    pm.response.to.have.status(404);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/201",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "201"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7 GET nonexistent code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 404\", function () {\r\n    pm.response.to.have.status(404);\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/999",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "999"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "8 POST not allowed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Статус 405\", function () {\r\n    pm.response.to.have.status(405);\r\n});\r\n\r\npm.test(\"Заголовок Allow є\", function () {\r\n    pm.response.to.have.header(\"Allow\", \"GET, PUT, DELETE\");\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://{{host}}:{{port}}/200",
+          "protocol": "http",
+          "host": [
+            "{{host}}"
+          ],
+          "port": "{{port}}",
+          "path": [
+            "200"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "host",
+      "value": ""
+    },
+    {
+      "key": "port",
+      "value": ""
+    }
+  ]
+}
