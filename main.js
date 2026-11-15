@@ -3,6 +3,7 @@ const fs = require('fs/promises');
 const path = require('path');
 const { once } = require('events');
 const superagent = require('superagent');
+const { buffer } = require('stream/consumers');
 const { Command } = require('commander');
 
 const program = new Command();
@@ -86,7 +87,31 @@ async function fetchFromHttpCat(code) {
     return null;
   }
 }
-
+// Безпечно записує файл у кеш: спочатку у тимчасовий файл, потім перейменування.
+// Так у кеші ніколи не буде наполовину записаного (пошкодженого) файлу.
+async function saveToCache(cacheDir, code, data) {
+  const target = cacheFilePath(cacheDir, code);
+  const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await fs.writeFile(tmp, data);
+    await fs.rename(tmp, target);
+  } catch (err) {
+    await fs.rm(tmp, { force: true });
+    throw err;
+  }
+}
+// Видаляє картинку з кешу. Повертає true, якщо файл був, і false, якщо його не було
+async function deleteFromCache(cacheDir, code) {
+  try {
+    await fs.unlink(cacheFilePath(cacheDir, code));
+    return true;
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return false;
+    }
+    throw err;
+  }
+}
 // Створює обробник запитів (єдиний дозволений колбек, тому async-функція)
 function createHandler(cacheDir) {
   return async (req, res) => {
@@ -122,11 +147,22 @@ function createHandler(cacheDir) {
         }
 
         // спочатку зберігаємо в кеш, потім відповідаємо клієнту
-        await fs.writeFile(cacheFilePath(cacheDir, code), fetched);
+               await saveToCache(cacheDir, code, fetched);
         sendImage(res, 200, fetched, 'MISS');
         return;
       }
-      // PUT і DELETE реалізуємо в наступних комітах
+            // 4. PUT: записуємо картинку з тіла запиту в кеш
+      if (req.method === 'PUT') {
+        const body = await buffer(req); // тіло запиту цілком, як Buffer
+        if (body.length === 0) {
+          sendText(res, 400, 'Bad Request: empty body');
+          return;
+        }
+        await saveToCache(cacheDir, code, body);
+        sendText(res, 201, 'Created');
+        return;
+      }
+                 // DELETE реалізуємо в наступному коміті
       sendText(res, 501, `Not implemented yet: ${req.method} ${code}`);
 
     } catch (err) {
