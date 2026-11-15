@@ -1,0 +1,43 @@
+# Запуск сервера
+node main.js -h 127.0.0.1 -p 3000 -c ./cache
+
+# Очистити кеш перед перевіркою
+rm -f cache/*.jpg
+
+# GET: картинки немає в кеші, береться з http.cat (очікується 200, X-Cache: MISS)
+curl -s -o /dev/null -D - http://127.0.0.1:3000/200
+
+# GET: повторний запит, береться з кешу (очікується 200, X-Cache: HIT)
+curl -s -o /dev/null -D - http://127.0.0.1:3000/200
+
+# GET: неіснуючий код (очікується 404)
+curl -s -o /dev/null -D - http://127.0.0.1:3000/999
+
+# GET: некоректний шлях (очікується 404)
+curl -i http://127.0.0.1:3000/abc
+
+# PUT: записати власну картинку (очікується 201)
+curl -i -X PUT --data-binary @my-image.jpg -H "Content-Type: image/jpeg" http://127.0.0.1:3000/201
+
+# GET після PUT: повертається власна картинка (очікується 200, X-Cache: HIT)
+curl -s -o out.jpg -D - http://127.0.0.1:3000/201
+
+# Перевірка, що файл не змінився
+cmp my-image.jpg out.jpg && echo "однакові"
+
+# PUT з порожнім тілом (очікується 400)
+curl -i -X PUT http://127.0.0.1:3000/202
+
+# DELETE: видалити картинку з кешу (очікується 200)
+curl -i -X DELETE http://127.0.0.1:3000/201
+
+# DELETE: картинки вже немає (очікується 404)
+curl -i -X DELETE http://127.0.0.1:3000/201
+
+# Недозволений метод (очікується 405 і заголовок Allow)
+curl -i -X POST http://127.0.0.1:3000/200
+
+# Заміри часу: перший запит (http.cat) і повторний (кеш)
+rm -f cache/*.jpg
+curl -s -o /dev/null -w "Перший GET (з http.cat): %{time_total} с\n" http://127.0.0.1:3000/200
+curl -s -o /dev/null -w "Повторний GET (з кешу): %{time_total} с\n" http://127.0.0.1:3000/200
