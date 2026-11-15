@@ -162,8 +162,16 @@ function createHandler(cacheDir) {
         sendText(res, 201, 'Created');
         return;
       }
-                 // DELETE реалізуємо в наступному коміті
-      sendText(res, 501, `Not implemented yet: ${req.method} ${code}`);
+            // 5. DELETE: видаляємо картинку з кешу
+      if (req.method === 'DELETE') {
+        const deleted = await deleteFromCache(cacheDir, code);
+        if (!deleted) {
+          sendText(res, 404, 'Not Found: image is not in cache');
+          return;
+        }
+        sendText(res, 200, 'OK');
+        return;
+      }
 
     } catch (err) {
       // Будь-яка непередбачена помилка не повинна валити сервер
